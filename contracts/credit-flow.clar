@@ -312,3 +312,68 @@
         )
       ))
     )
+    ;; Update score and loan statistics
+    (if success
+      (map-set UserScores { user: user }
+        (merge current-score {
+          score: new-score,
+          total-repaid: (+ (get total-repaid current-score) (get amount loan)),
+          loans-repaid: (+ (get loans-repaid current-score) u1),
+          last-update: stacks-block-height,
+        })
+      )
+      (map-set UserScores { user: user }
+        (merge current-score {
+          score: new-score,
+          last-update: stacks-block-height,
+        })
+      )
+    )
+    (ok true)
+  )
+)
+
+;; Update User Active Loans List
+;; Adds a new loan ID to user's active loans tracking
+(define-private (update-user-loans
+    (user principal)
+    (loan-id uint)
+  )
+  (let ((user-loans (default-to { active-loans: (list) } (map-get? UserLoans { user: user }))))
+    (map-set UserLoans { user: user } { 
+      active-loans: (unwrap! (as-max-len? (append (get active-loans user-loans) loan-id) u20)
+        ERR-ACTIVE-LOAN
+      ) 
+    })
+    (ok true)
+  )
+)
+
+;; READ-ONLY FUNCTIONS
+
+;; Get User Credit Profile
+;; Retrieves comprehensive credit information for a user
+(define-read-only (get-user-score (user principal))
+  (map-get? UserScores { user: user })
+)
+
+;; Get Loan Details
+;; Retrieves complete information about a specific loan
+(define-read-only (get-loan (loan-id uint))
+  (map-get? Loans { loan-id: loan-id })
+)
+
+;; Get User Active Loans
+;; Retrieves list of active loan IDs for a user
+(define-read-only (get-user-active-loans (user principal))
+  (map-get? UserLoans { user: user })
+)
+
+;; Get System Statistics
+;; Retrieves key system metrics
+(define-read-only (get-system-stats)
+  {
+    next-loan-id: (var-get next-loan-id),
+    total-stx-locked: (var-get total-stx-locked),
+  }
+)
